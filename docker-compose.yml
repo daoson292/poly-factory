@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: polyfactory-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-polyfactory}
+      POSTGRES_USER: ${DB_USER:-polyfactory_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-polyfactory_secure_pwd_2026}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-polyfactory_user} -d ${DB_NAME:-polyfactory}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: polyfactory-backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${DB_USER:-polyfactory_user}:${DB_PASSWORD:-polyfactory_secure_pwd_2026}@postgres:5432/${DB_NAME:-polyfactory}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_key_polyfactory_2026}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-super_secret_admin_jwt_key_polyfactory_2026}
+      STORAGE_PATH: /app/storage
+    volumes:
+      - static_storage:/app/storage
+    ports:
+      - "3000:3000"
+    deploy:
+      resources:
+        limits:
+          memory: 600M
+
+  nginx:
+    image: nginx:alpine
+    container_name: polyfactory-nginx
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_storage:/var/www/storage:ro
+      - certbot_www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+
+  certbot:
+    image: certbot/certbot
+    container_name: polyfactory-certbot
+    restart: unless-stopped
+    volumes:
+      - certbot_www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  postgres_data:
+  static_storage:
+  certbot_www:
