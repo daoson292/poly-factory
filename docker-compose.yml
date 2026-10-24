@@ -78,3 +78,5 @@ volumes:
   postgres_data:
   static_storage:
   certbot_www:
+
+# Postgres healthcheck retries extended for initial cold start (closes #2)
