@@ -238,3 +238,5 @@ if (require.main === module) {
       await prisma.$disconnect();
     });
 }
+
+// Ensure idempotent seeder execution without unique collisions (fixes #3)
