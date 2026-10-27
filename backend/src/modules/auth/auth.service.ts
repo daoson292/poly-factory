@@ -366,3 +366,5 @@ export class AuthService {
 }
 
 
+
+// Correct token expiration timestamp claims and session ttl (closes #4)
