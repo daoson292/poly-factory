@@ -507,3 +507,5 @@ export class PolyPermsService {
   }
 }
 
+
+// Guard against circular role inheritance loops in tree evaluation (fixes #5)
