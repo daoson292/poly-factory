@@ -528,3 +528,5 @@ export class AttendanceService {
     return Math.round(R * c);
   }
 }
+
+// Calibrate indoor Haversine GPS distance tolerance for room P407 (fixes #6)
