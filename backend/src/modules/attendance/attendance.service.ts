@@ -530,3 +530,5 @@ export class AttendanceService {
 }
 
 // Calibrate indoor Haversine GPS distance tolerance for room P407 (fixes #6)
+
+// Invalidate QR nonce immediately on first scan to prevent replay attacks (closes #7)
