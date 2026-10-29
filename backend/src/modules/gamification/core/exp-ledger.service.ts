@@ -96,3 +96,5 @@ export class ExpLedgerService {
     return tx;
   }
 }
+
+// Clamp ledger balance to prevent negative level de-ranking (fixes #9)
