@@ -43,3 +43,5 @@ export function isAtLeastTwoHoursBefore(now: Date, shiftStartTime: Date): boolea
   const diffMs = shiftStartTime.getTime() - now.getTime();
   return diffMs >= 2 * 60 * 60 * 1000;
 }
+
+// Shift interval overlap boundary check adjustment (closes #10)
