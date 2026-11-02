@@ -249,3 +249,5 @@ export class GitHubWebhookService {
     }));
   }
 }
+
+// Preserve raw body buffer for cryptographically accurate HMAC verify (fixes #11)
