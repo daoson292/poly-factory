@@ -1,0 +1,915 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// 1. NHÓM ĐỊNH DANH, TEAM & PHÂN QUYỀN POLYPERMS
+// ==========================================
+
+enum UserRole {
+  TRAINEE
+  MEMBER
+  TEAM_LEAD
+  MENTOR
+  DEVELOPER
+}
+
+enum UserStatus {
+  PENDING_ACTIVATION
+  ACTIVE
+  ALUMNI
+  LOCKED
+}
+
+enum Position {
+  FRONTEND
+  BACKEND
+  FULLSTACK
+  TESTER
+  UI_UX
+  BA
+}
+
+model User {
+  id                      String       @id @default(uuid()) @db.Uuid
+  email                   String       @unique
+  phone                   String?      @unique
+  fullName                String       @map("full_name")
+  avatarUrl               String?      @map("avatar_url")
+  role                    UserRole     @default(TRAINEE)
+  status                  UserStatus   @default(PENDING_ACTIVATION)
+  statusReason            String?      @map("status_reason")
+  positions               Json?        // Array of Position unlocked after graduating Training
+
+  teamId                  String?      @map("team_id") @db.Uuid
+  team                    Team?        @relation("TeamMembers", fields: [teamId], references: [id])
+
+  ledTeams                Team[]       @relation("TeamLeader")
+
+  trainingLevelId         String?      @map("training_level_id") @db.Uuid
+  trainingLevel           TrainingLevel? @relation(fields: [trainingLevelId], references: [id])
+
+  trainingBatchId         String?      @map("training_batch_id") @db.Uuid
+  trainingBatch           TrainingBatch? @relation(fields: [trainingBatchId], references: [id])
+
+  githubUsername          String?      @unique @map("github_username")
+  githubUserId            String?      @unique @map("github_user_id")
+  zaloUserId              String?      @unique @map("zalo_user_id")
+
+  tokenVersion            Int          @default(0) @map("token_version")
+  emailPreferences        Json?        @map("email_preferences")
+
+  currentExp              Int          @default(0) @map("current_exp")
+  totalExpEarned          Int          @default(0) @map("total_exp_earned")
+  currentLevel            Int          @default(1) @map("current_level")
+  unexcusedCount          Int          @default(0) @map("unexcused_count")
+  consecutivePresentCount Int          @default(0) @map("consecutive_present_count")
+  isCursed                Boolean      @default(false) @map("is_cursed")
+
+  lastCheckinAt           DateTime?    @map("last_checkin_at") @db.Timestamptz
+  createdAt               DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  schedules               Schedule[]
+  attendances             Attendance[]
+  leaveTickets            LeaveTicket[]
+  submissions             TaskSubmission[]
+  projectMembers          ProjectMember[]
+  projectApplications     ProjectApplication[]
+  projectActivities       ProjectActivity[]
+  projectCertificates     ProjectCertificate[]
+  expTransactions         ExpTransaction[]
+  cosmetics               UserCosmetic[]
+  tags                    UserTag[]
+  notificationReads       NotificationRead[]
+  userPermissions         UserPermission[]
+  groupMappings           UserGroupMapping[]
+  assignedSchedules       Schedule[]           @relation("ScheduleAssigner")
+  reviewedSubmissions     TaskSubmission[]     @relation("SubmissionReviewer")
+  reviewedTickets         LeaveTicket[]        @relation("TicketReviewer")
+  reviewedApplications    ProjectApplication[] @relation("ApplicationReviewer")
+  createdSessions         AttendanceSession[]  @relation("SessionCreator")
+  createdNotifications    Notification[]       @relation("NotificationCreator")
+  createdProjects         Project[]            @relation("ProjectCreator")
+  roomUpdates             RoomConfig[]         @relation("RoomUpdater")
+  approvedAttendances     Attendance[]         @relation("AttendanceApprover")
+
+  // Testing & Bug Tracking (M17) Relations
+  createdTestCases        TestCase[]           @relation("TestCaseCreator")
+  createdTestRuns         TestRun[]            @relation("TestRunCreator")
+  closedTestRuns          TestRun[]            @relation("TestRunCloser")
+  assignedTestResults     TestResult[]         @relation("TestResultAssignee")
+  executedTestResults     TestResult[]         @relation("TestResultExecutor")
+  reportedBugs            Bug[]                @relation("BugReporter")
+  assignedBugs            Bug[]                @relation("BugAssignee")
+  fixedBugs               Bug[]                @relation("BugFixer")
+  verifiedBugs            Bug[]                @relation("BugVerifier")
+  bugHistories            BugHistory[]         @relation("BugHistoryActor")
+
+  @@index([role, status])
+  @@index([teamId])
+  @@map("users")
+}
+
+model Team {
+  id                  String         @id @default(uuid()) @db.Uuid
+  name                String         @unique
+  leaderId            String?        @map("leader_id") @db.Uuid
+  leader              User?          @relation("TeamLeader", fields: [leaderId], references: [id])
+  viceLeadIds         Json?          @map("vice_lead_ids") // Array of user IDs [uuid]
+  viceLeadPermissions Json?          @map("vice_lead_permissions") // Map of enabled permission keys
+  description         String?
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+
+  members             User[]         @relation("TeamMembers")
+  notifications       Notification[]
+
+  @@map("teams")
+}
+
+model TrainingLevel {
+  id                String         @id @default(uuid()) @db.Uuid
+  levelName         String         @map("level_name") // Level 1 -> Tag Lv1, Level 2 -> Tag Lv2, Level 3 -> Graduation
+  orderIndex        Int            @unique @map("order_index")
+  isGraduationLevel Boolean        @default(false) @map("is_graduation_level")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  users             User[]
+  tasks             TrainingTask[]
+
+  @@map("training_levels")
+}
+
+model TrainingBatch {
+  id        String         @id @default(uuid()) @db.Uuid
+  batchName String         @map("batch_name") // Fall 2026, Gen 8...
+  startDate DateTime       @map("start_date") @db.Date
+  endDate   DateTime?      @map("end_date") @db.Date
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  users     User[]
+  tasks     TrainingTask[]
+
+  @@map("training_batches")
+}
+
+model PermissionNode {
+  nodeId      String           @id @map("node_id") // attendance.qr.create, testing.bug.verify...
+  module      String           // attendance, room, training, project, testing
+  description String
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  rolePerms   RolePermission[]
+  userPerms   UserPermission[]
+
+  @@map("permission_nodes")
+}
+
+model RolePermission {
+  id               String          @id @default(uuid()) @db.Uuid
+  roleOrGroup      String          @map("role_or_group") // DEFAULT, TRAINEE, MEMBER, TEAM_LEAD, MENTOR, DEVELOPER
+  nodeId           String          @map("node_id")
+  node             PermissionNode  @relation(fields: [nodeId], references: [nodeId])
+  isAllowed        Boolean         @default(true) @map("is_allowed")
+
+  secondaryGroupId String?         @map("secondary_group_id") @db.Uuid
+  secondaryGroup   SecondaryGroup? @relation(fields: [secondaryGroupId], references: [id])
+
+  @@unique([roleOrGroup, nodeId])
+  @@map("role_permissions")
+}
+
+model UserPermission {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  user      User           @relation(fields: [userId], references: [id])
+  nodeId    String         @map("node_id")
+  node      PermissionNode @relation(fields: [nodeId], references: [nodeId])
+  isAllowed Boolean        @default(true) @map("is_allowed")
+  expiresAt DateTime?      @map("expires_at") @db.Timestamptz
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([userId, nodeId])
+  @@map("user_permissions")
+}
+
+model SecondaryGroup {
+  id          String             @id @default(uuid()) @db.Uuid
+  code        String             @unique // track.event_crew
+  name        String
+  description String?
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  members     UserGroupMapping[]
+  permissions RolePermission[]
+
+  @@map("secondary_groups")
+}
+
+model UserGroupMapping {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  user      User           @relation(fields: [userId], references: [id])
+  groupId   String         @map("group_id") @db.Uuid
+  group     SecondaryGroup @relation(fields: [groupId], references: [id])
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([userId, groupId])
+  @@map("user_group_mappings")
+}
+
+// ==========================================
+// 2. NHÓM LỊCH, PHÒNG & ĐIỂM DANH
+// ==========================================
+
+enum RoomStatus {
+  OPEN
+  CLOSED
+  MOVED
+}
+
+model RoomConfig {
+  id          String     @id @default(uuid()) @db.Uuid
+  currentRoom String     @default("P407") @map("current_room")
+  status      RoomStatus @default(OPEN)
+  tempRoom    String?    @map("temp_room")
+  reason      String?
+  revertAt    DateTime?  @map("revert_at") @db.Timestamptz
+  updatedById String     @map("updated_by_id") @db.Uuid
+  updatedBy   User       @relation("RoomUpdater", fields: [updatedById], references: [id])
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("room_configs")
+}
+
+enum ScheduleType {
+  SELF_REGISTERED
+  ASSIGNED
+}
+
+model Schedule {
+  id           String        @id @default(uuid()) @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  user         User          @relation(fields: [userId], references: [id])
+  workDate     DateTime      @map("work_date") @db.Date
+  shiftNumber  Int           @map("shift_number") // 1 to 6
+  type         ScheduleType  @default(SELF_REGISTERED)
+  assignedById String?       @map("assigned_by_id") @db.Uuid
+  assignedBy   User?         @relation("ScheduleAssigner", fields: [assignedById], references: [id])
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  attendance   Attendance?
+  leaveTickets LeaveTicket[]
+
+  @@unique([userId, workDate, shiftNumber])
+  @@index([workDate, shiftNumber])
+  @@map("schedules")
+}
+
+enum SessionStatus {
+  ACTIVE
+  CLOSED
+  EXPIRED
+}
+
+model AttendanceSession {
+  id               String        @id @default(uuid()) @db.Uuid
+  sessionDate      DateTime      @map("session_date") @db.Date
+  shiftNumber      Int           @map("shift_number") // 1 to 6, 0 for event
+  isEvent          Boolean       @default(false) @map("is_event")
+  stepSeconds      Int           @default(10) @map("step_seconds") // 10, 20, 30
+  secretKey        String        @map("secret_key")
+  expReward        Int           @default(10) @map("exp_reward")
+  cosmeticRewardId String?       @map("cosmetic_reward_id") @db.Uuid
+  status           SessionStatus @default(ACTIVE)
+  createdById      String        @map("created_by_id") @db.Uuid
+  createdBy        User          @relation("SessionCreator", fields: [createdById], references: [id])
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  attendances      Attendance[]
+
+  @@map("attendance_sessions")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  EXCUSED_ABSENCE
+  UNEXCUSED_ABSENCE
+  WAITING_TICKET_REVIEW
+  CANCELLED_BY_ROOM
+}
+
+enum CheckInMethod {
+  QR_SCAN
+  LEAD_MANUAL
+  ADJUSTMENT
+}
+
+enum GpsStatus {
+  GREEN
+  RED
+}
+
+model Attendance {
+  id            String             @id @default(uuid()) @db.Uuid
+  scheduleId    String?            @unique @map("schedule_id") @db.Uuid
+  schedule      Schedule?          @relation(fields: [scheduleId], references: [id])
+  sessionId     String?            @map("session_id") @db.Uuid
+  session       AttendanceSession? @relation(fields: [sessionId], references: [id])
+  userId        String             @map("user_id") @db.Uuid
+  user          User               @relation(fields: [userId], references: [id])
+  isWalkIn      Boolean            @default(false) @map("is_walk_in")
+  status        AttendanceStatus   @default(PRESENT)
+  checkInTime   DateTime?          @map("check_in_time") @db.Timestamptz
+  checkInMethod CheckInMethod      @default(QR_SCAN) @map("check_in_method")
+  gpsStatus     GpsStatus?         @map("gps_status")
+  gpsDistance   Float?             @map("gps_distance")
+  deviceToken   String?            @map("device_token")
+  approvedById  String?            @map("approved_by_id") @db.Uuid
+  approvedBy    User?              @relation("AttendanceApprover", fields: [approvedById], references: [id])
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([sessionId, userId])
+  @@index([userId, status])
+  @@index([sessionId])
+  @@map("attendances")
+}
+
+enum TicketType {
+  LEAVE
+  LATE
+}
+
+enum TicketStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model LeaveTicket {
+  id                  String       @id @default(uuid()) @db.Uuid
+  userId              String       @map("user_id") @db.Uuid
+  user                User         @relation(fields: [userId], references: [id])
+  scheduleId          String       @map("schedule_id") @db.Uuid
+  schedule            Schedule     @relation(fields: [scheduleId], references: [id])
+  ticketType          TicketType   @map("ticket_type")
+  expectedArrivalTime String?      @map("expected_arrival_time")
+  reason              String
+  status              TicketStatus @default(PENDING)
+  reviewedById        String?      @map("reviewed_by_id") @db.Uuid
+  reviewedBy          User?        @relation("TicketReviewer", fields: [reviewedById], references: [id])
+  createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("leave_tickets")
+}
+
+// ==========================================
+// 3. NHÓM ĐÀO TẠO & DỰ ÁN GITHUB
+// ==========================================
+
+enum TaskType {
+  TRAINEE
+  MEMBER
+}
+
+model TrainingTask {
+  id          String           @id @default(uuid()) @db.Uuid
+  batchId     String?          @map("batch_id") @db.Uuid
+  batch       TrainingBatch?   @relation(fields: [batchId], references: [id])
+  levelId     String?          @map("level_id") @db.Uuid
+  level       TrainingLevel?   @relation(fields: [levelId], references: [id])
+  taskType    TaskType         @default(TRAINEE) @map("task_type")
+  title       String
+  docsLink    String           @map("docs_link")
+  driveLink   String?          @map("drive_link")
+  isMandatory Boolean          @default(true) @map("is_mandatory")
+  expReward   Int              @default(20) @map("exp_reward")
+  deadline    DateTime?        @db.Timestamptz
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  submissions TaskSubmission[]
+
+  @@map("training_tasks")
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  REVISION_REQUIRED
+  COMPLETED
+}
+
+model TaskSubmission {
+  id               String           @id @default(uuid()) @db.Uuid
+  taskId           String           @map("task_id") @db.Uuid
+  task             TrainingTask     @relation(fields: [taskId], references: [id])
+  userId           String           @map("user_id") @db.Uuid
+  user             User             @relation(fields: [userId], references: [id])
+  versionNumber    Int              @default(1) @map("version_number")
+  isLatest         Boolean          @default(true) @map("is_latest")
+  submissionLink   String           @map("submission_link")
+  notes            String?
+  status           SubmissionStatus @default(SUBMITTED)
+  reviewerFeedback String?          @map("reviewer_feedback")
+  reviewedById     String?          @map("reviewed_by_id") @db.Uuid
+  reviewedBy       User?            @relation("SubmissionReviewer", fields: [reviewedById], references: [id])
+  submittedAt      DateTime         @default(now()) @map("submitted_at") @db.Timestamptz
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([taskId, userId, versionNumber])
+  @@map("task_submissions")
+}
+
+enum ProjectVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+}
+
+model Project {
+  id                       String               @id @default(uuid()) @db.Uuid
+  name                     String
+  githubRepoUrl            String               @unique @map("github_repo_url")
+  githubRepoId             String?              @unique @map("github_repo_id")
+  visibility               ProjectVisibility    @default(PUBLIC)
+  status                   ProjectStatus        @default(ACTIVE)
+  githubArchivedAt         DateTime?            @map("github_archived_at") @db.Timestamptz
+  completionOverrideReason String?              @map("completion_override_reason")
+  conditionsDescription    String?              @map("conditions_description")
+  docsLink                 String?              @map("docs_link")
+  figmaLink                String?              @map("figma_link")
+  lastCommitAt             DateTime?            @map("last_commit_at") @db.Timestamptz
+  createdById              String               @map("created_by_id") @db.Uuid
+  createdBy                User                 @relation("ProjectCreator", fields: [createdById], references: [id])
+  createdAt                DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime             @updatedAt @map("updated_at") @db.Timestamptz
+
+  members                  ProjectMember[]
+  applications             ProjectApplication[]
+  activities               ProjectActivity[]
+  certificates             ProjectCertificate[]
+  testSuites               TestSuite[]
+  testCases                TestCase[]
+  testRuns                 TestRun[]
+  bugs                     Bug[]
+
+  @@map("projects")
+}
+
+enum ApplicationStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+model ProjectApplication {
+  id              String            @id @default(uuid()) @db.Uuid
+  projectId       String            @map("project_id") @db.Uuid
+  project         Project           @relation(fields: [projectId], references: [id])
+  userId          String            @map("user_id") @db.Uuid
+  user            User              @relation(fields: [userId], references: [id])
+  status          ApplicationStatus @default(PENDING_APPROVAL)
+  className       String            @map("class_name")
+  studentCode     String            @map("student_code")
+  appliedPosition Position          @default(FRONTEND) @map("applied_position")
+  notesPortfolio  String?           @map("notes_portfolio")
+  reviewedById    String?           @map("reviewed_by_id") @db.Uuid
+  reviewedBy      User?             @relation("ApplicationReviewer", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?         @map("reviewed_at") @db.Timestamptz
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([projectId, userId])
+  @@map("project_applications")
+}
+
+model ProjectMember {
+  id                     String   @id @default(uuid()) @db.Uuid
+  projectId              String   @map("project_id") @db.Uuid
+  project                Project  @relation(fields: [projectId], references: [id])
+  userId                 String   @map("user_id") @db.Uuid
+  user                   User     @relation(fields: [userId], references: [id])
+  position               Position @default(FRONTEND)
+  isProjectLead          Boolean  @default(false) @map("is_project_lead")
+  canTest                Boolean  @default(false) @map("can_test")
+  isDeliverableVerified  Boolean  @default(false) @map("is_deliverable_verified")
+  totalCommits           Int      @default(0) @map("total_commits")
+  mergedPrs              Int      @default(0) @map("merged_prs")
+  validBugsFound         Int      @default(0) @map("valid_bugs_found")
+  validBugsFixed         Int      @default(0) @map("valid_bugs_fixed")
+  testCasesExecuted      Int      @default(0) @map("test_cases_executed")
+  contributionPercentage Float    @default(0) @map("contribution_percentage")
+  joinedAt               DateTime @default(now()) @map("joined_at") @db.Timestamptz
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+enum ProjectActivityType {
+  COMMIT
+  PR_MERGED
+}
+
+model ProjectActivity {
+  id            String              @id @default(uuid()) @db.Uuid
+  projectId     String              @map("project_id") @db.Uuid
+  project       Project             @relation(fields: [projectId], references: [id])
+  userId        String?             @map("user_id") @db.Uuid
+  user          User?               @relation(fields: [userId], references: [id])
+  activityType  ProjectActivityType @default(COMMIT) @map("activity_type")
+  commitHash    String              @unique @map("commit_hash")
+  prNumber      Int?                @map("pr_number")
+  commitMessage String              @map("commit_message")
+  branchName    String              @map("branch_name")
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("project_activities")
+}
+
+model ProjectCertificate {
+  id                  String   @id @default(uuid()) @db.Uuid
+  certificateCode     String   @unique @map("certificate_code") // PF-CERT-YYYY-XXXX
+  projectId           String   @map("project_id") @db.Uuid
+  project             Project  @relation(fields: [projectId], references: [id])
+  userId              String   @map("user_id") @db.Uuid
+  user                User     @relation(fields: [userId], references: [id])
+  position            Position
+  contributionSummary String   @map("contribution_summary")
+  issuedAt            DateTime @default(now()) @map("issued_at") @db.Timestamptz
+
+  @@unique([projectId, userId])
+  @@map("project_certificates")
+}
+
+model WebhookDelivery {
+  deliveryId  String   @id @map("delivery_id")
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz
+
+  @@map("webhook_deliveries")
+}
+
+// ==========================================
+// 4. NHÓM KIỂM THỬ & QUẢN LÝ BUG DỰ ÁN (M17)
+// ==========================================
+
+enum TestCasePriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum TestRunStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum TestResultStatus {
+  UNTESTED
+  PASSED
+  FAILED
+  BLOCKED
+  SKIPPED
+}
+
+enum BugSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum BugStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  REOPENED
+}
+
+enum BugResolution {
+  FIXED
+  NOT_A_BUG
+  DUPLICATE
+  WONT_FIX
+  CANNOT_REPRODUCE
+  DEFERRED
+}
+
+model TestSuite {
+  id          String     @id @default(uuid()) @db.Uuid
+  projectId   String     @map("project_id") @db.Uuid
+  project     Project    @relation(fields: [projectId], references: [id])
+  name        String
+  description String?
+  orderIndex  Int        @default(0) @map("order_index")
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  testCases   TestCase[]
+
+  @@map("test_suites")
+}
+
+model TestCase {
+  id            String           @id @default(uuid()) @db.Uuid
+  projectId     String           @map("project_id") @db.Uuid
+  project       Project          @relation(fields: [projectId], references: [id])
+  suiteId       String           @map("suite_id") @db.Uuid
+  suite         TestSuite        @relation(fields: [suiteId], references: [id])
+  code          String           // TC-01, TC-02...
+  title         String
+  priority      TestCasePriority @default(MEDIUM)
+  preconditions String?
+  steps         Json             // Array of { step_no, action, expected_result }
+  isDeleted     Boolean          @default(false) @map("is_deleted")
+  createdById   String           @map("created_by_id") @db.Uuid
+  createdBy     User             @relation("TestCaseCreator", fields: [createdById], references: [id])
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  testResults   TestResult[]
+  bugs          Bug[]
+
+  @@unique([projectId, code])
+  @@map("test_cases")
+}
+
+model TestRun {
+  id              String        @id @default(uuid()) @db.Uuid
+  projectId       String        @map("project_id") @db.Uuid
+  project         Project       @relation(fields: [projectId], references: [id])
+  name            String
+  environmentInfo String?       @map("environment_info")
+  status          TestRunStatus @default(ACTIVE)
+  createdById     String        @map("created_by_id") @db.Uuid
+  createdBy       User          @relation("TestRunCreator", fields: [createdById], references: [id])
+  closedById      String?       @map("closed_by_id") @db.Uuid
+  closedBy        User?         @relation("TestRunCloser", fields: [closedById], references: [id])
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  closedAt        DateTime?     @map("closed_at") @db.Timestamptz
+
+  results         TestResult[]
+
+  @@map("test_runs")
+}
+
+model TestResult {
+  id           String           @id @default(uuid()) @db.Uuid
+  testRunId    String           @map("test_run_id") @db.Uuid
+  testRun      TestRun          @relation(fields: [testRunId], references: [id])
+  testCaseId   String           @map("test_case_id") @db.Uuid
+  testCase     TestCase         @relation(fields: [testCaseId], references: [id])
+  caseSnapshot Json             @map("case_snapshot")
+  assigneeId   String?          @map("assignee_id") @db.Uuid
+  assignee     User?            @relation("TestResultAssignee", fields: [assigneeId], references: [id])
+  executedById String?          @map("executed_by_id") @db.Uuid
+  executedBy   User?            @relation("TestResultExecutor", fields: [executedById], references: [id])
+  status       TestResultStatus @default(UNTESTED)
+  actualResult String?          @map("actual_result")
+  evidenceUrls Json?            @map("evidence_urls")
+  executedAt   DateTime?        @map("executed_at") @db.Timestamptz
+
+  bugs         Bug[]
+
+  @@unique([testRunId, testCaseId])
+  @@index([testRunId, status])
+  @@map("test_results")
+}
+
+model Bug {
+  id                      String         @id @default(uuid()) @db.Uuid
+  projectId               String         @map("project_id") @db.Uuid
+  project                 Project        @relation(fields: [projectId], references: [id])
+  code                    String         // BUG-01, BUG-02...
+  testCaseId              String?        @map("test_case_id") @db.Uuid
+  testCase                TestCase?      @relation(fields: [testCaseId], references: [id])
+  testResultId            String?        @map("test_result_id") @db.Uuid
+  testResult              TestResult?    @relation(fields: [testResultId], references: [id])
+  title                   String
+  severity                BugSeverity    @default(MEDIUM)
+  severityConfirmedByLead Boolean        @default(false) @map("severity_confirmed_by_lead")
+  status                  BugStatus      @default(OPEN)
+  resolution              BugResolution?
+  duplicateOfId           String?        @map("duplicate_of_id") @db.Uuid
+  duplicateOf             Bug?           @relation("BugDuplicate", fields: [duplicateOfId], references: [id])
+  duplicates              Bug[]          @relation("BugDuplicate")
+  environment             String?
+  stepsToReproduce        String         @map("steps_to_reproduce")
+  expectedResult          String         @map("expected_result")
+  actualResult            String         @map("actual_result")
+  evidenceUrls            Json?          @map("evidence_urls")
+  fixReference            String?        @map("fix_reference")
+  reporterId              String         @map("reporter_id") @db.Uuid
+  reporter                User           @relation("BugReporter", fields: [reporterId], references: [id])
+  assigneeId              String?        @map("assignee_id") @db.Uuid
+  assignee                User?          @relation("BugAssignee", fields: [assigneeId], references: [id])
+  fixedById               String?        @map("fixed_by_id") @db.Uuid
+  fixedBy                 User?          @relation("BugFixer", fields: [fixedById], references: [id])
+  verifiedById            String?        @map("verified_by_id") @db.Uuid
+  verifiedBy              User?          @relation("BugVerifier", fields: [verifiedById], references: [id])
+  expAwardedTester        Boolean        @default(false) @map("exp_awarded_tester")
+  expActiveDev            Boolean        @default(false) @map("exp_active_dev")
+  createdAt               DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  resolvedAt              DateTime?      @map("resolved_at") @db.Timestamptz
+  closedAt                DateTime?      @map("closed_at") @db.Timestamptz
+
+  histories               BugHistory[]
+
+  @@unique([projectId, code])
+  @@index([projectId, status, severity])
+  @@map("bugs")
+}
+
+model BugHistory {
+  id          String         @id @default(uuid()) @db.Uuid
+  bugId       String         @map("bug_id") @db.Uuid
+  bug         Bug            @relation(fields: [bugId], references: [id])
+  changedById String         @map("changed_by_id") @db.Uuid
+  changedBy   User           @relation("BugHistoryActor", fields: [changedById], references: [id])
+  fromStatus  BugStatus?     @map("from_status")
+  toStatus    BugStatus      @map("to_status")
+  resolution  BugResolution?
+  note        String?
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("bug_histories")
+}
+
+// ==========================================
+// 5. NHÓM GAMIFICATION & THÔNG BÁO
+// ==========================================
+
+model ExpTransaction {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  user         User     @relation(fields: [userId], references: [id])
+  amount       Int      // Positive (earned) or Negative (penalty / revocation)
+  balanceAfter Int      @map("balance_after")
+  source       String   // ATTENDANCE_NORMAL, GITHUB_COMMIT, BUG_VALID_REPORTED, BUG_FIXED_VERIFIED...
+  referenceId  String?  @map("reference_id")
+  reason       String
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([userId, createdAt, source])
+  @@map("exp_transactions")
+}
+
+enum CosmeticType {
+  AVATAR_FRAME_STATIC
+  AVATAR_FRAME_GIF
+  PROFILE_BANNER
+  VISUAL_EFFECT
+  NAME_COLOR
+}
+
+enum ItemRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+model Cosmetic {
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String
+  cosmeticType  CosmeticType   @map("cosmetic_type")
+  filePath      String         @map("file_path")
+  rarity        ItemRarity     @default(COMMON)
+  requiredLevel Int?           @map("required_level")
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  userCosmetics UserCosmetic[]
+
+  @@map("cosmetics")
+}
+
+model UserCosmetic {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id])
+  cosmeticId String   @map("cosmetic_id") @db.Uuid
+  cosmetic   Cosmetic @relation(fields: [cosmeticId], references: [id])
+  isEquipped Boolean  @default(false) @map("is_equipped")
+  acquiredAt DateTime @default(now()) @map("acquired_at") @db.Timestamptz
+
+  @@unique([userId, cosmeticId])
+  @@map("user_cosmetics")
+}
+
+enum TagType {
+  TRAINING_LEVEL
+  ACHIEVEMENT
+  CERTIFICATE
+  CURSE_DEBUFF
+}
+
+model BadgeTag {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @unique // Lv1, Lv2, Tốt nghiệp Training, Vua Trốn Học...
+  tagType   TagType   @map("tag_type")
+  colorCode String    @map("color_code")
+  isCurse   Boolean   @default(false) @map("is_curse")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  userTags  UserTag[]
+
+  @@map("badge_tags")
+}
+
+model UserTag {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  user        User     @relation(fields: [userId], references: [id])
+  tagId       String   @map("tag_id") @db.Uuid
+  tag         BadgeTag @relation(fields: [tagId], references: [id])
+  isDisplayed Boolean  @default(false) @map("is_displayed")
+  isLocked    Boolean  @default(false) @map("is_locked")
+  acquiredAt  DateTime @default(now()) @map("acquired_at") @db.Timestamptz
+
+  @@unique([userId, tagId])
+  @@map("user_tags")
+}
+
+enum NotificationCategory {
+  URGENT_POPUP
+  ROOM_CHANGE
+  SHIFT_SUMMON
+  TEAM
+  GENERAL
+  PROJECT_TESTING
+}
+
+model Notification {
+  id           String               @id @default(uuid()) @db.Uuid
+  title        String
+  content      String
+  category     NotificationCategory @default(GENERAL)
+  targetTeamId String?              @map("target_team_id") @db.Uuid
+  targetTeam   Team?                @relation(fields: [targetTeamId], references: [id])
+  createdById  String               @map("created_by_id") @db.Uuid
+  createdBy    User                 @relation("NotificationCreator", fields: [createdById], references: [id])
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz
+
+  reads        NotificationRead[]
+
+  @@map("notifications")
+}
+
+model NotificationRead {
+  id             String       @id @default(uuid()) @db.Uuid
+  notificationId String       @map("notification_id") @db.Uuid
+  notification   Notification @relation(fields: [notificationId], references: [id])
+  userId         String       @map("user_id") @db.Uuid
+  user           User         @relation(fields: [userId], references: [id])
+  readAt         DateTime     @default(now()) @map("read_at") @db.Timestamptz
+
+  @@unique([notificationId, userId])
+  @@map("notification_reads")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  tableName     String   @map("table_name")
+  action        String   // INSERT, UPDATE, DELETE
+  recordId      String   @map("record_id")
+  oldValues     Json?    @map("old_values")
+  newValues     Json?    @map("new_values")
+  actorUsername String   @map("actor_username")
+  ipAddress     String?  @map("ip_address")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("audit_logs")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  VIEWER
+}
+
+model AdminAccount {
+  id           String    @id @default(uuid()) @db.Uuid
+  username     String    @unique
+  passwordHash String    @map("password_hash")
+  fullName     String    @map("full_name")
+  adminRole    AdminRole @default(ADMIN) @map("admin_role")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("admin_accounts")
+}
