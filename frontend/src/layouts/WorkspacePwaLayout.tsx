@@ -67,3 +67,5 @@ export const WorkspacePwaLayout: React.FC<WorkspacePwaLayoutProps> = ({
     </div>
   );
 };
+
+// Prevent mobile Safari viewport scroll bounce on modal lock (fixes #12)
