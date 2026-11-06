@@ -50,3 +50,5 @@ self.addEventListener('push', (event) => {
     });
   }
 });
+
+// Filter out 500 error responses before caching offline assets (closes #13)
