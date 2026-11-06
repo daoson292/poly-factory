@@ -1,0 +1,36 @@
+{
+  "app": {
+    "title": "PolyFactory Xưởng Thực Hành",
+    "headerTitle": "PolyFactory",
+    "headerColor": "#0052cc",
+    "textColor": "white",
+    "statusBar": "transparent",
+    "leftButton": "none"
+  },
+  "pages": [
+    "pages/auth/index",
+    "pages/home/index",
+    "pages/attendance/index",
+    "pages/training/index"
+  ],
+  "template": {
+    "primaryColor": "#0052cc",
+    "nav": [
+      {
+        "page": "pages/home/index",
+        "text": "Phòng & Ca",
+        "icon": "icon-home"
+      },
+      {
+        "page": "pages/attendance/index",
+        "text": "Điểm danh",
+        "icon": "icon-qr"
+      },
+      {
+        "page": "pages/training/index",
+        "text": "Cá nhân",
+        "icon": "icon-user"
+      }
+    ]
+  }
+}
