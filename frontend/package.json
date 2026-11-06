@@ -1,0 +1,21 @@
+{
+  "name": "polyfactory-frontend",
+  "version": "2.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit",
+    "test": "node --require ts-node/register --test \"src/**/*.spec.ts\""
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}
