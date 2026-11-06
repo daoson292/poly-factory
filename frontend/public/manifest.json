@@ -1,0 +1,23 @@
+{
+  "name": "PolyFactory - Xưởng Phần Mềm FPT Polytechnic",
+  "short_name": "PolyFactory",
+  "description": "Nền tảng Vận Hành Xưởng Thực Chiến, Gamification & Phân Hệ Kiểm Thử v2.2.0",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#f97316",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
