@@ -1,0 +1,100 @@
+name: PolyFactory CI / Quality Gates
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  backend-quality-gate:
+    name: Backend Validation, Unit & E2E Testing
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "postgresql://polyfactory:polyfactory_secure_2026@localhost:5432/polyfactory_db?schema=public&connection_limit=18"
+      JWT_SECRET: "test_secret_for_ci_pipeline_2026"
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: polyfactory
+          POSTGRES_PASSWORD: polyfactory_secure_2026
+          POSTGRES_DB: polyfactory_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U polyfactory -d polyfactory_db"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: backend/package.json
+
+      - name: Install Dependencies
+        run: |
+          cd backend
+          npm install
+
+      - name: Validate Prisma Schema
+        run: |
+          cd backend
+          npm run prisma:validate
+
+      - name: Generate Prisma Client
+        run: |
+          cd backend
+          npm run prisma:generate
+
+      - name: Run Test Suite (Unit & E2E Integration)
+        run: |
+          cd backend
+          npm test
+
+      - name: Verify Clean Build (0 TypeScript Errors)
+        run: |
+          cd backend
+          npm run build
+
+  frontend-quality-gate:
+    name: Frontend Logic Testing, PWA Build & Zalo Mini App Typecheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: frontend/package.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Run Frontend Logic Tests
+        run: |
+          cd frontend
+          npm test
+
+      - name: Verify Frontend Clean Build (0 TypeScript Errors)
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Verify Zalo Mini App Typecheck
+        run: |
+          npx --prefix frontend tsc --noEmit --project zalo-miniapp/tsconfig.json
