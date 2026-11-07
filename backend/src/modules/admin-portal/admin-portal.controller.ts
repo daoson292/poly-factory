@@ -8,7 +8,7 @@ export class AdminPortalController {
 
   @Post('login')
   async login(@Body() body: { username: string; pass: string }) {
-    return this.adminPortalService.login(body.username, body.pass);
+    return this.adminPortalService.login(body.username, body.pass || (body as any).password);
   }
 
   @UseGuards(AdminAuthGuard)

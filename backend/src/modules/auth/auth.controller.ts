@@ -7,9 +7,9 @@ import { AddWhitelistMemberDto, ImportWhitelistMemberItemDto } from './dto/white
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('google/callback')
+  @Post(['google', 'google/callback'])
   async googleAuthCallback(@Body() body: { email: string; fullName: string; avatarUrl?: string }) {
-    return this.authService.validateGoogleUser(body);
+    return this.authService.validateGoogleUser({ email: body.email, fullName: body.fullName || (body as any).name || body.email?.split('@')[0], avatarUrl: body.avatarUrl });
   }
 
   @UseGuards(JwtAuthGuard)
