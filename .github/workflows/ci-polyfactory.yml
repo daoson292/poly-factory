@@ -98,3 +98,5 @@ jobs:
       - name: Verify Zalo Mini App Typecheck
         run: |
           npx --prefix frontend tsc --noEmit --project zalo-miniapp/tsconfig.json
+
+# Injected DATABASE_URL environment secret for test runner (closes #1)
