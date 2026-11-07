@@ -7,11 +7,11 @@ interface LogLine {
   message: string;
 }
 
-interface MinecraftConsoleViewProps {
+interface PolyFactoryConsoleViewProps {
   initialLogs?: LogLine[];
 }
 
-export const MinecraftConsoleView: React.FC<MinecraftConsoleViewProps> = ({
+export const PolyFactoryConsoleView: React.FC<PolyFactoryConsoleViewProps> = ({
   initialLogs = []
 }) => {
   const [logs, setLogs] = useState<LogLine[]>(initialLogs);
@@ -37,11 +37,11 @@ export const MinecraftConsoleView: React.FC<MinecraftConsoleViewProps> = ({
   const getLevelColor = (level: 'INFO' | 'WARN' | 'ERROR') => {
     switch (level) {
       case 'INFO':
-        return '#4ade80'; // Minecraft green
+        return '#4ade80'; // Success green
       case 'WARN':
-        return '#facc15'; // Minecraft gold
+        return '#facc15'; // Warning amber
       case 'ERROR':
-        return '#f87171'; // Minecraft red
+        return '#f87171'; // Error red
     }
   };
 
@@ -49,9 +49,9 @@ export const MinecraftConsoleView: React.FC<MinecraftConsoleViewProps> = ({
     <div style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', height: '600px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '18px' }}>⛏️</span>
+          <span style={{ fontSize: '18px' }}>💻</span>
           <h3 style={{ margin: 0, fontSize: '16px', color: '#ffffff', fontFamily: 'monospace' }}>
-            MINECRAFT SERVER CONSOLE (WS: /ws/console)
+            POLYFACTORY CONSOLE (WS: /ws/console)
           </h3>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -110,3 +110,4 @@ export const MinecraftConsoleView: React.FC<MinecraftConsoleViewProps> = ({
     </div>
   );
 };
+

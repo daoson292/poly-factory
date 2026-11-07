@@ -15,7 +15,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 }) => {
   const sections = [
     { key: 'dashboard', label: 'Giám Sát Phần Cứng', icon: '📈' },
-    { key: 'console', label: 'Minecraft Console', icon: '💻' },
+    { key: 'console', label: 'PolyFactory Console', icon: '💻' },
     { key: 'users', label: 'Quản Lý Whitelist & EXP', icon: '👥' },
     { key: 'polyperms', label: 'Cây Quyền PolyPerms', icon: '🌳' },
     { key: 'cosmetics', label: 'Kho Vật Phẩm Trang Trí', icon: '🎨' },

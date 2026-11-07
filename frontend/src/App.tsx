@@ -14,7 +14,7 @@ import { LeadReviewPanel } from './features/training/LeadReviewPanel';
 import { UserProfileView } from './features/profile/UserProfileView';
 import { AdminLayout } from './admin/AdminLayout';
 import { ServerDashboardView } from './admin/ServerDashboardView';
-import { MinecraftConsoleView } from './admin/MinecraftConsoleView';
+import { PolyFactoryConsoleView } from './admin/PolyFactoryConsoleView';
 import { AdminDataManageView } from './admin/AdminDataManageView';
 import { ProjectListPage } from './features/projects/ProjectListPage';
 import { ProjectDetailLayout } from './features/projects/ProjectDetailLayout';
@@ -233,7 +233,7 @@ export const App: React.FC = () => {
             />
           )}
 
-          {adminSection === 'console' && <MinecraftConsoleView />}
+          {adminSection === 'console' && <PolyFactoryConsoleView />}
 
           {adminSection === 'users' && (
             <AdminDataManageView
