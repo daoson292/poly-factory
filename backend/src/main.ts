@@ -1,8 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { WsAdapter } from '@nestjs/platform-ws';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { MinecraftLoggerInterceptor } from './common/interceptors/minecraft-logger.interceptor';
+import { PolyFactoryLoggerInterceptor } from './common/interceptors/polyfactory-logger.interceptor';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -62,7 +63,8 @@ async function bootstrap() {
 
   // 5. Global Error Filter & Terminal Console Logger
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.useGlobalInterceptors(new MinecraftLoggerInterceptor());
+  app.useGlobalInterceptors(new PolyFactoryLoggerInterceptor());
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   const port = process.env.PORT || 3000;
   await app.listen(port);

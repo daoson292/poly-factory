@@ -15,7 +15,7 @@ export class ConsoleLogGateway implements OnGatewayConnection, OnGatewayDisconne
   server: Server;
 
   handleConnection(client: WebSocket) {
-    this.logger.log('Client connected to Minecraft-style Console Log stream');
+    this.logger.log('Client connected to PolyFactory Console Log stream');
     if (client.readyState === 1 /* OPEN */) {
       client.send(
         JSON.stringify({

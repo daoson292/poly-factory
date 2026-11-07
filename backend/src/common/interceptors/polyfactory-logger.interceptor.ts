@@ -9,8 +9,8 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
 @Injectable()
-export class MinecraftLoggerInterceptor implements NestInterceptor {
-  private readonly logger = new Logger('MinecraftServerConsole');
+export class PolyFactoryLoggerInterceptor implements NestInterceptor {
+  private readonly logger = new Logger('PolyFactory Console');
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const req = context.switchToHttp().getRequest();
@@ -21,7 +21,7 @@ export class MinecraftLoggerInterceptor implements NestInterceptor {
       tap(() => {
         const responseTime = Date.now() - now;
         const actor = req.user?.email || req.admin?.username || 'anonymous';
-        // Minecraft Server Terminal Style Log: [INFO] [Actor] METHOD /path took Nms
+        // PolyFactory Terminal Style Log: [INFO] [Actor] METHOD /path took Nms
         this.logger.log(
           `\x1b[32m[INFO]\x1b[0m \x1b[36m[${actor}]\x1b[0m ${method} ${url} - \x1b[33m${responseTime}ms\x1b[0m (IP: ${ip})`,
         );
@@ -29,3 +29,4 @@ export class MinecraftLoggerInterceptor implements NestInterceptor {
     );
   }
 }
+
