@@ -1,0 +1,23 @@
+{
+  "name": "polyfactory-zalo-miniapp",
+  "version": "1.0.0",
+  "description": "PolyFactory Internal Zalo Mini App for Workshop Management",
+  "main": "src/app.tsx",
+  "scripts": {
+    "dev": "zmp start",
+    "build": "zmp build",
+    "typecheck": "tsc --noEmit",
+    "deploy": "zmp deploy"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zmp-sdk": "^2.39.0",
+    "zmp-ui": "^1.11.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.3"
+  }
+}
