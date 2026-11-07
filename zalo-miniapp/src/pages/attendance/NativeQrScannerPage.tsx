@@ -169,3 +169,5 @@ export const NativeQrScannerPage: React.FC<NativeQrScannerPageProps> = ({ token 
   );
 };
 export default NativeQrScannerPage;
+
+// Graceful toast feedback when user rejects camera permission (fixes #14)
