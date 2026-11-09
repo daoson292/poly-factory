@@ -12,3 +12,6 @@ Hệ thống quản lý xưởng nội bộ (FPL Poly Factory).
 ```bash
 docker-compose up -d
 ```
+
+## Liên hệ & Đóng góp
+- Thành viên dự án: Dao Son & Khanh
